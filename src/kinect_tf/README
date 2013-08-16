@@ -1,0 +1,9 @@
+name: kinect_tf.cpp
+author: Vittorio Alfieri
+
+purpose: Read angle from Kinect, and publish the corresponding tf transform from /base_link to /camera_link.
+
+How it works: Listens to /cur_tilt_angle and /camera/depth/points, and publishes a stamped transform on with latest angle and sensor_cloud timestamp.
+
+Requires: kinect_aux, ros, openni driver
+

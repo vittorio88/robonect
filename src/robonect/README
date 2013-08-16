@@ -1,0 +1,44 @@
+name: kinect_teleop_joy_ros_pkg
+includes: joy_kinect_angle  kinect_aux  tf_broadcaster_kinect pc_rototranslator
+description: This is a ROS stack that simplifies the control of an xBox Kinect motor using a generic linux joystick ( xBox gamepad).
+		In addition a tf transform is published which will translate from the kinect to /base_link.
+		It is composed of 3 packages, each of which contains it's own README.
+		Finally pc_rototranslator grabs the pointcloud and corresponding transform to create a new pointcloud in the correct frame of reference in soft real time.
+requires: Ubuntu packages ->  ros-fuerte-joy, ros-fuerte-openni_camera
+	  git repo -> git://github.com/ros-pkg-git/kinect.git
+	  git repo -> git://github.com/vittorio88/robonect.git
+
+
+installation: 
+# download and compile kinect_aux
+ git clone git://github.com/ros-pkg-git/kinect.git
+ mv kinect/kinect_aux/ ./
+ rm -rf kinect
+ rosmake kinect_aux
+
+
+# download robonect source
+	git clone git://github.com/vittorio88/robonect.git
+	cd robonect
+
+# cd into each individual package and convert into eclipse project
+	cd kinect_teleop
+	make clean
+	make eclipse-project
+	cd ..
+
+	cd kinect_tf
+	make clean
+	make eclipse-project
+	cd ..
+
+	cd pc_rototranslator
+	make clean
+	make eclipse-project
+	cd ..
+
+#build packages
+	rosmake *
+
+Execution:
+roslaunch robonect_launcher robonect.launch
