@@ -21,15 +21,15 @@ public:
 		ROS_INFO("Entering Constructor!!!");
 
 		// Subscribes to /cur_tilt_angle and registers Callback function
-		curTiltAngleSubscriber.subscribe(node, "/cur_tilt_angle", 30);
+		curTiltAngleSubscriber.subscribe(node, "/cur_tilt_angle", 3);
 		curTiltAngleSubscriber.registerCallback(boost::bind(&tf_broadcaster_kinect::curTiltAngleCallback, this, _1));
 
 //        // Subscribes to /cur_tilt_status and registers Callback function
-//        curTiltStatusSubscriber.subscribe(node, "/cur_tilt_status", 30);
+//        curTiltStatusSubscriber.subscribe(node, "/cur_tilt_status", 3);
 //        curTiltStatusSubscriber.registerCallback(boost::bind(&tf_broadcaster_kinect::curTiltStatusCallback, this, _1));
 
 		// Subscribes sensorCloud and registers Callback function
-		sensorCloudSubscriber.subscribe(node, "/camera/depth/points", 30);
+		sensorCloudSubscriber.subscribe(node, "/camera/depth/points", 3);
 		sensorCloudSubscriber.registerCallback(boost::bind(&tf_broadcaster_kinect::sensorCloudCallback, this, _1));
 	}
 
@@ -75,7 +75,7 @@ void sensorCloudCallback(const boost::shared_ptr<const sensor_msgs::PointCloud2>
 							"/base_link",
 							"/camera_link"));
 
-	ROS_INFO("New Transform Published!!! Cloud timestamp is:%d The /cur_tilt_angle is:%f.",sensor_cloud->header.stamp.sec, curTiltAngle );
+	ROS_INFO("New Transform Published!!! Cloud sequence ID is:%d The /cur_tilt_angle is:%f.",sensor_cloud->header.seq, curTiltAngle );
 
 	}}
 //	}

@@ -1,7 +1,9 @@
 <launch>
 <node name="kinect_aux" pkg="kinect_aux" type="kinect_aux_node" />
 <node name="kinect_teleop_keyboard" pkg="kinect_teleop" type="kinect_teleop_keyboard" />
+<param  name="camera/driver/data_skip" value="9"/>
 <include file="$(find openni_launch)/launch/openni.launch"/>
 <node name="kinect_tf_broadcaster" pkg="kinect_tf" type="kinect_tf_broadcaster" />
 <node name="pc_rototranslator_node" pkg="pc_rototranslator" type="pc_rototranslator_node" />
+
 </launch>

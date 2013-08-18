@@ -66,7 +66,7 @@ private:
 kinect_teleop_keyboard::kinect_teleop_keyboard()
 {
 	kinectAngle.data = 0.0; // set initial angle to 0
-	kinectAnglePublisher = nh_.advertise<std_msgs::Float64>("tilt_angle", 30);
+	kinectAnglePublisher = nh_.advertise<std_msgs::Float64>("tilt_angle", 3);
 }
 
 int kfd = 0;

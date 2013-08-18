@@ -29,8 +29,8 @@ private:
 
 kinect_teleop_joy::kinect_teleop_joy()
 {
-	joySubscriber = node.subscribe<sensor_msgs::Joy>("joy", 1, &kinect_teleop_joy::joyCallback, this);
-	kinectAnglePublisher = node.advertise<std_msgs::Float64>("tilt_angle", 30);
+	joySubscriber = node.subscribe<sensor_msgs::Joy>("joy", 3, &kinect_teleop_joy::joyCallback, this);
+	kinectAnglePublisher = node.advertise<std_msgs::Float64>("tilt_angle", 3);
 }
 
 void kinect_teleop_joy::joyCallback(const sensor_msgs::Joy::ConstPtr& joy)

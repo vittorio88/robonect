@@ -5,7 +5,7 @@ int main(int argc, char** argv){
   ros::init(argc, argv, "tf_broadcaster_fixed");
   ros::NodeHandle n;
 
-  ros::Rate r(10);
+  ros::Rate r(3);
 
   tf::TransformBroadcaster broadcaster;
 
