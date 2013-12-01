@@ -43,19 +43,19 @@ class pc_rototranslator
 public:
 
 
-	pc_rototranslator() : tfTransformListener(),  target_frame("/base_link")
+	pc_rototranslator() : tfTransformListener_(),  target_frame_("/base_link")
 	{
 		ROS_INFO("Entering Constructor!!!");
 
 		// Subscribes pcSubscriber to topic, and calls cloud_cb
-		pcSubscriber.subscribe(node, "/camera/depth/points", 3);
-		pcSubscriber.registerCallback(boost::bind(&pc_rototranslator::rosCloudCallback, this, _1));// Binds address of cloud_cb to a boost address. Must later be called by function and dereferenced within.
+		cloudSubscriber_.subscribe(node_, "/camera/depth/points", 3);
+		cloudSubscriber_.registerCallback(boost::bind(&pc_rototranslator::rosCloudCallback, this, _1));// Binds address of cloud_cb to a boost address. Must later be called by function and dereferenced within.
 
 		// Transform Filter for tfTransformListener
-		tfMessageFilter = new tf::MessageFilter<geometry_msgs::TransformStamped>(tfSubscriber, tfTransformListener, target_frame, 3);
+		tfMessageFilter_ = new tf::MessageFilter<geometry_msgs::TransformStamped>(tfSubscriber_, tfTransformListener_, target_frame_, 3);
 
 		// Advertise new cloud
-		rototranslatedpcPublisher = node.advertise<sensor_msgs::PointCloud2>("rototranslatedpc", 3);
+		rototranslatedpcPublisher_ = node_.advertise<sensor_msgs::PointCloud2>("rototranslatedpc", 3);
 		viewer_= createVisualizer();
 		visualizer_thread_.reset(new boost::thread(boost::bind(&pc_rototranslator::spinVisualizer,this)));
 
@@ -63,92 +63,101 @@ public:
 	} ;
 
 	// DECLARATIONS
-	ros::NodeHandle node;
-	ros::Publisher rototranslatedpcPublisher;
-	message_filters::Subscriber<sensor_msgs::PointCloud2> pcSubscriber; // sensorPcSubscriber   RENAME TO pcSensorSubscriber
-	tf::TransformListener tfTransformListener; // tfTransformListener for storing filtered transforms
-	std::string target_frame; // frame for tfMessageFilter
-	tf::MessageFilter<geometry_msgs::TransformStamped> * tfMessageFilter; // Filter for type geometry_msgs::TransformStamped
-	message_filters::Subscriber<geometry_msgs::TransformStamped> tfSubscriber; // tfSubscriber for type geometry_msgs::TransformStamped
+	ros::NodeHandle node_;
+	ros::Publisher rototranslatedpcPublisher_;
+	message_filters::Subscriber<sensor_msgs::PointCloud2> cloudSubscriber_;
+	tf::TransformListener tfTransformListener_;
+	std::string target_frame_;
+	tf::MessageFilter<geometry_msgs::TransformStamped> * tfMessageFilter_;
+	message_filters::Subscriber<geometry_msgs::TransformStamped> tfSubscriber_;
 	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer_;
 	boost::shared_ptr<boost::thread> visualizer_thread_;
 
 	//  Higher level sensorCloud Callback Function
-	int rosCloudCallback(const boost::shared_ptr<const sensor_msgs::PointCloud2>& rosCloudPtr){
+	int
+	rosCloudCallback(const boost::shared_ptr<const sensor_msgs::PointCloud2>& rosCloudPtr){
 
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr tempCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
 		pcl::fromROSMsg( *rosCloudPtr , *tempCloudPtr );
-		updateVisualizer(tempCloudPtr);
+		pcl::PointCloud<pcl::PointXYZ>::ConstPtr constCloudPtr (tempCloudPtr );
 
 
-		//		filterCloud(outputCloudPtr);
-		//		transformCloud(outputCloudPtr);
-		//		segmentGroundPlane(outputCloudPtr);
-		//		findCloudNormal(outputCloudPtr);
-		//		rosCloudPublish(outputCloudPtr);
+
+		// filter cloud
+		pcl::PointCloud<pcl::PointXYZ>::ConstPtr filteredCloud =  filterCloud(constCloudPtr);
+		//transformCloud(constCloudPtr); // broken
+
+		// find normals
+		pcl::PointCloud<pcl::PointXYZ>::ConstPtr groundPlaneCloud = segmentGroundPlane(filteredCloud);
+		pcl::PointCloud<pcl::Normal>::ConstPtr normals = findCloudNormal(groundPlaneCloud);
+
+		// publish and visualize cloud
+		updateVisualizer(constCloudPtr, normals);
+		rosCloudPublish(filteredCloud);
 		return 0;
 
 	}
 
 
-	int filterCloud(const boost::shared_ptr<sensor_msgs::PointCloud2>& inputCloudPtr){
-		pcl::PointCloud<pcl::PointXYZ>::Ptr inputPclCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
-		pcl::PointCloud<pcl::PointXYZ>::Ptr outputPclCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
-		pcl::PointCloud<pcl::PointXYZ>::Ptr voxelPclCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
-		pcl::PointCloud<pcl::PointXYZ>::Ptr sorPclCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
-		pcl::fromROSMsg( *inputCloudPtr , *inputPclCloudPtr );
+	pcl::PointCloud<pcl::PointXYZ>::ConstPtr
+	filterCloud(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& inputCloudPtr){
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr outputCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
+		pcl::PointCloud<pcl::PointXYZ>::Ptr voxelCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
+		pcl::PointCloud<pcl::PointXYZ>::Ptr sorCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
 
 		// Perform voxel filter
 		pcl::VoxelGrid<pcl::PointXYZ> vox;
-		vox.setInputCloud (inputPclCloudPtr);
+		vox.setInputCloud (inputCloudPtr);
 		vox.setLeafSize (0.01f, 0.01f, 0.01f);
-		vox.filter (*voxelPclCloudPtr);
+		vox.filter (*voxelCloudPtr);
 
 		// Create the filtering object
 		pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-		sor.setInputCloud (voxelPclCloudPtr);
+		sor.setInputCloud (voxelCloudPtr);
 		sor.setMeanK (50);
 		sor.setStddevMulThresh (1.0);
-		sor.filter (*sorPclCloudPtr);
+		sor.filter (*sorCloudPtr);
 
 
-		*outputPclCloudPtr=*sorPclCloudPtr;
+		*outputCloudPtr=*sorCloudPtr; // select output cloud
 		ROS_INFO("Filter: incloud height=%d", inputCloudPtr->height );
 		ROS_INFO("Filter: incloud width=%d", inputCloudPtr->width );
-		ROS_INFO("Filter: outcloud height=%d", outputPclCloudPtr->height );
-		ROS_INFO("Filter: outcloud width=%d", outputPclCloudPtr->width );
-		pcl::toROSMsg(*outputPclCloudPtr,*inputCloudPtr); // Replace contents of inputCloudPtr address location with filtered cloud
-		return 0;
+		ROS_INFO("Filter: outcloud height=%d", outputCloudPtr->height );
+		ROS_INFO("Filter: outcloud width=%d", outputCloudPtr->width );
+		return outputCloudPtr;
 	}
 
-	// Publish new rototranslatedpc
-	int transformCloud(const boost::shared_ptr<sensor_msgs::PointCloud2>& inputCloudPtr){
-		sensor_msgs::PointCloud2 tempCloud;
-		try{
-			tfTransformListener.waitForTransform("/camera_link", "/base_link", inputCloudPtr->header.stamp, ros::Duration(3.0));
-			pcl_ros::transformPointCloud ("/base_link", *inputCloudPtr, tempCloud, tfTransformListener);
-		}
-		catch (tf::TransformException& ex){
-			ROS_ERROR("%s",ex.what());
-		}
-		ROS_INFO("Transform: The cloud.header.frame_id is: %s ",tempCloud.header.frame_id.c_str());
-		*inputCloudPtr=tempCloud;
-		return 0;
-	}
+//	// Publish new rototranslatedpc
+//	pcl::PointCloud<pcl::PointXYZ>::Ptr
+//	transformCloud(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& inputCloudPtr){
+//
+//		pcl::PointCloud<pcl::PointXYZ>::Ptr outputCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
+//
+//		try{
+//			tfTransformListener_.waitForTransform("/camera_link", "/base_link", inputCloudPtr->header.stamp, ros::Duration(3.0));
+//			//pcl_ros::transformPointCloud ("/base_link", *inputCloudPtr, outputCloudPtr, tfTransformListener_); // CHANGE TO GET TRANSFORM AND APPLY IN PCL
+//		}
+//		catch (tf::TransformException& ex){
+//			ROS_ERROR("%s",ex.what());
+//		}
+//
+//		ROS_INFO("Transform: The cloud.header.frame_id is: %s ",outputCloudPtr->header.frame_id.c_str());
+//		return outputCloudPtr;
+//	}
 
-	int segmentGroundPlane(const boost::shared_ptr<sensor_msgs::PointCloud2>& inputCloudPtr){
+	pcl::PointCloud<pcl::PointXYZ>::ConstPtr
+	segmentGroundPlane(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& inputCloudPtr){
 
-		// Bring cloud in from ROS
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>  );
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_p (new pcl::PointCloud<pcl::PointXYZ>  );
-		//		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_f (new pcl::PointCloud<pcl::PointXYZ>  );
-		pcl::fromROSMsg( *inputCloudPtr , *cloud_filtered );
+		//pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_f (new pcl::PointCloud<pcl::PointXYZ>  );
+
 
 		pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients ());
 
-		//pcl::PointIndices::Ptr inliers (new pcl::PointIndices ()); // ORIG DONT TOUCH
-		const boost::shared_ptr<pcl::PointIndices> inliers (new pcl::PointIndices ());
+		pcl::PointIndices::Ptr inliers (new pcl::PointIndices ()); // ORIG DONT TOUCH
+		//const boost::shared_ptr<pcl::PointIndices> inliers (new pcl::PointIndices ());
 
 
 		// Create the segmentation object
@@ -164,22 +173,22 @@ public:
 		// Create the filtering object
 		pcl::ExtractIndices<pcl::PointXYZ> extract;
 
-		int i = 0, nr_points = (int) cloud_filtered->points.size ();
+		int i = 0, nr_points = (int) inputCloudPtr->points.size ();
 		// While 30% of the original cloud is still there
-		while (cloud_filtered->points.size () > 0.3 * nr_points)
+		while (inputCloudPtr->points.size () > 0.3 * nr_points)
 		{
 			// Segment the largest planar component from the remaining cloud
-			seg.setInputCloud (cloud_filtered);
+			seg.setInputCloud (inputCloudPtr);
 			seg.segment (*inliers, *coefficients);
 			if (inliers->indices.size () == 0)
 			{
 				std::cerr << "Could not estimate a planar model for the given dataset." << std::endl;
 				break;
 			}
-
+			pcl::PointIndices::ConstPtr inliersConst (inliers);
 			// Extract the inliers
-			extract.setInputCloud (cloud_filtered);
-			extract.setIndices (inliers); // IGNORE ECLIPSE ERROR HERE. COMPILER WORKS.
+			extract.setInputCloud (inputCloudPtr);
+			extract.setIndices (inliersConst);
 			extract.setNegative (false);
 			extract.filter (*cloud_p);
 			std::cerr << "PointCloud representing the planar component: " << cloud_p->width * cloud_p->height << " data points." << std::endl;
@@ -195,57 +204,56 @@ public:
 			//		    i++;
 		}
 
-		pcl::toROSMsg(*cloud_p,*inputCloudPtr); // Replace contents of inputCloudPtr address location with filtered cloud
-		return 0;
+
+		return cloud_p;
 	}
 
-	int findCloudNormal(const boost::shared_ptr<sensor_msgs::PointCloud2>& inputCloudPtr){
+	pcl::PointCloud<pcl::Normal>::ConstPtr
+	findCloudNormal(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& inputCloudPtr){
 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>  );
-		pcl::fromROSMsg( *inputCloudPtr , *cloud );
-
-		// estimate normals
 		pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-
 		pcl::IntegralImageNormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
 		ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
 		ne.setMaxDepthChangeFactor(0.02f);
 		ne.setNormalSmoothingSize(10.0f);
-		ne.setInputCloud(cloud);
+		ne.setInputCloud(inputCloudPtr);
 		ne.compute(*normals);
 
-		//		pclCloud_=*cloud ;
-		if(!viewer_->updatePointCloud(cloud, "sample cloud"))// IGNORE ECLIPSE ERROR HERE. COMPILER WORKS.
-			viewer_->addPointCloud(cloud,  "sample cloud");// IGNORE ECLIPSE ERROR HERE. COMPILER WORKS.
-
-
-		//pcl::toROSMsg(*cloud_p,*inputCloudPtr); // Replace contents of inputCloudPtr address location with filtered cloud
-		return 0;
+		pcl::PointCloud<pcl::Normal>::ConstPtr normalsConst (new pcl::PointCloud<pcl::Normal>);
+		return normalsConst;
 	}
 
-	void spinVisualizer(){
+	int
+	spinVisualizer(void){
 		ros::Rate r(5);
 		while (!viewer_->wasStopped()){
 			viewer_->spinOnce();
 			r.sleep();
 		}
 		std::cout<<"Stopped the Viewer"<<std::endl;
+	return 0;
 	}
-	int updateVisualizer(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPtr){
 
-		pcl::PointCloud<pcl::PointXYZ>::ConstPtr constCloudPtr (cloudPtr );
-		if(!viewer_->updatePointCloud(constCloudPtr, "sample cloud"))// IGNORE ECLIPSE ERROR HERE. COMPILER WORKS.
-			viewer_->addPointCloud(constCloudPtr,  "sample cloud");// IGNORE ECLIPSE ERROR HERE. COMPILER WORKS.
+
+	int
+	updateVisualizer(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& cloud,
+						const pcl::PointCloud<pcl::Normal>::ConstPtr& normals){
+
+
+		viewer_->updatePointCloud(cloud, "sample cloud");
+		viewer_->addPointCloudNormals<pcl::PointXYZ, pcl::Normal> (cloud, normals, 10, 0.05, "normals");
+
 
 		return 0;
 	}
+
 	boost::shared_ptr<pcl::visualization::PCLVisualizer>
-	createVisualizer()
+	createVisualizer( void )
 	{
 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr initCloud (new pcl::PointCloud<pcl::PointXYZ> );
+		pcl::PointCloud<pcl::PointXYZ>::Ptr initCloud (new pcl::PointCloud<pcl::PointXYZ> ); //stays empty
 		boost::shared_ptr<pcl::visualization::PCLVisualizer> v
-			(new pcl::visualization::PCLVisualizer("3D Visualizer"));
+		(new pcl::visualization::PCLVisualizer("3D Visualizer"));
 		v->setBackgroundColor(0, 0, 0);
 		v->addPointCloud<pcl::PointXYZ> (initCloud, "sample cloud");
 		v->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud");
@@ -258,12 +266,15 @@ public:
 
 
 	// Publish new rototranslatedpc
-	int rosCloudPublish(const boost::shared_ptr<sensor_msgs::PointCloud2>& inputCloudPtr){
+	int rosCloudPublish(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& inputCloudPtr){
+
+		const boost::shared_ptr<sensor_msgs::PointCloud2> rosCloudPtr (new sensor_msgs::PointCloud2);
+		pcl::toROSMsg(*inputCloudPtr,*rosCloudPtr); // Replace contents of inputCloudPtr address location with filtered cloud
 
 		// Check for subscribers
-		if (rototranslatedpcPublisher.getNumSubscribers() > 0)
+		if (rototranslatedpcPublisher_.getNumSubscribers() > 0)
 		{
-			rototranslatedpcPublisher.publish(inputCloudPtr);
+			rototranslatedpcPublisher_.publish(rosCloudPtr);
 		}
 		return 0;
 	}
