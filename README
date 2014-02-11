@@ -1,0 +1,20 @@
+
+prerequisites:
+ros hydro
+catkin environment variables and install path
+have catkin workspace directory and install path directory with overlayed workspaces
+
+
+dependencies:
+sudo apt-get install ros-hydro-pcl-ros
+sudo apt-get install ros-hydro-perception-pcl
+sudo apt-get install ros-hydro-joy
+sudo apt-get install ros-hydro-kinect-aux
+sudo apt-get install ros-hydro-pcl-conversions ros-hydro-pcl-msgs
+sudo apt-get install ros-hydro-openni-camera
+sudo apt-get install ros-hydro-openni-launch
+
+
+
+install:
+source vitto_build.sh
