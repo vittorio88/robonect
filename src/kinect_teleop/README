@@ -4,4 +4,4 @@ Author: Vittorio Alfieri
 Purpose: This program receives input from a generic Linux joystick, keyboard, or fixed value. The input is then  scaled and published to a topic which sets the angle of a Kinect Depth Camera.
 How it works: This module waits for messages on the /joy topic, and publishes on the /tilt_angle topic.
 
-requirements: requires ros-fuerte-joy and kinect_aux to be running.
+requirements: requires ros-hydro-joy and kinect_aux to be running.
