@@ -56,8 +56,8 @@ public:
 
 		// Advertise new cloud
 		rototranslatedpcPublisher_ = node_.advertise<sensor_msgs::PointCloud2>("rototranslatedpc", 3);
-		viewer_= createVisualizer();
-		visualizer_thread_.reset(new boost::thread(boost::bind(&pc_rototranslator::spinVisualizer,this)));
+		//viewer_= createVisualizer();
+		//visualizer_thread_.reset(new boost::thread(boost::bind(&pc_rototranslator::spinVisualizer,this)));
 
 
 	} ;
@@ -89,11 +89,11 @@ public:
 		//transformCloud(constCloudPtr); // broken
 
 		// find normals
-		pcl::PointCloud<pcl::PointXYZ>::ConstPtr groundPlaneCloud = segmentGroundPlane(filteredCloud);
-		pcl::PointCloud<pcl::Normal>::ConstPtr normals = findCloudNormal(groundPlaneCloud);
+		//pcl::PointCloud<pcl::PointXYZ>::ConstPtr groundPlaneCloud = segmentGroundPlane(filteredCloud);
+		//pcl::PointCloud<pcl::Normal>::ConstPtr normals = findCloudNormal(groundPlaneCloud);
 
 		// publish and visualize cloud
-		updateVisualizer(constCloudPtr, normals);
+		//updateVisualizer(filterCloud, normals);
 		rosCloudPublish(filteredCloud);
 		return 0;
 
