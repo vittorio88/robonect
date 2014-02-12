@@ -4,7 +4,7 @@ project(pc_rototranslator)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS pcl pcl_ros roscpp sensor_msgs)
+find_package(catkin REQUIRED COMPONENTS pcl_conversions pcl_ros roscpp sensor_msgs)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS thread signals system) # ORIG WORKS
@@ -22,7 +22,7 @@ find_package(Boost REQUIRED COMPONENTS thread signals system) # ORIG WORKS
 catkin_package(
 #   INCLUDE_DIRS include
 #  LIBRARIES pc_rototranslator
-  CATKIN_DEPENDS pcl pcl_ros roscpp sensor_msgs
+  CATKIN_DEPENDS pcl_conversions pcl_ros roscpp sensor_msgs
   DEPENDS system_lib
 )
 

@@ -6,13 +6,8 @@ have catkin workspace directory and install path directory with overlayed worksp
 
 
 dependencies:
-sudo apt-get install ros-hydro-pcl-ros
-sudo apt-get install ros-hydro-perception-pcl
-sudo apt-get install ros-hydro-joy
-sudo apt-get install ros-hydro-kinect-aux
-sudo apt-get install ros-hydro-pcl-conversions ros-hydro-pcl-msgs
-sudo apt-get install ros-hydro-openni-camera
-sudo apt-get install ros-hydro-openni-launch
+sudo apt-get install ros-hydro-pcl-ros ros-hydro-pcl-conversions ros-hydro-pcl-msgs ros-hydro-perception-pcl ros-hydro-joy ros-hydro-kinect-aux ros-hydro-openni-camera ros-hydro-openni-launch
+
 
 
 
