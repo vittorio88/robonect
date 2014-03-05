@@ -70,7 +70,7 @@ void sensorCloudCallback(const boost::shared_ptr<const sensor_msgs::PointCloud2>
 					tf::Transform(
 							tf::Quaternion( 0, std::sin( (curTiltAngle*-1)*(M_PI/360.0) ), 0, std::cos( (curTiltAngle*-1)*(M_PI/360.0) ) ) , // WORKING!
 							//tf::Quaternion( 0, std::cos( int((curTiltAngle)*(M_PI/360.0)) ), 0, std::sin( int((curTiltAngle)*(M_PI/360.0)) ) ) ,
-							tf::Vector3(0.0, 0.0, 0.4)),
+							tf::Vector3(0.0, 0.0, 0.45)),
 							sensor_cloud->header.stamp,
 							"/base_link",
 							"/camera_link"));

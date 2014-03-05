@@ -20,6 +20,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <tf/message_filter.h>
+#include <tf_conversions/tf_eigen.h>
 #include <message_filters/subscriber.h>
 
 // For segmentation of ground plane, estimation of transform, and transform to align 0 plane with ground for kinect axis of rotation.
@@ -37,6 +38,11 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/features/normal_3d.h>
 #include <boost/thread/thread.hpp>
+
+// For printing uint64
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 class pc_rototranslator
 {
 
@@ -86,7 +92,21 @@ public:
 
 		// filter cloud
 		pcl::PointCloud<pcl::PointXYZ>::ConstPtr filteredCloud =  filterCloud(constCloudPtr);
-		//transformCloud(constCloudPtr); // broken
+		transformCloud(constCloudPtr,rosCloudPtr->header.stamp);
+		timespec s_crt, e_crt;
+
+
+		// TODO: EXPERIMENTS WITH TIME STAMPS. TRY TO PLACE ROS TIME STAMP IN POINTCLOUD HEADER
+		//constCloudPtr->header.stamp = gettimeofday(&s_get, NULL);
+//		constCloudPtr->header.stamp = clock_gettime(CLOCK_REALTIME,  &s_crt);
+//		ROS_INFO("#######" );
+//		ROS_INFO("rosCloudPtr->header.stamp = ", rosCloudPtr->header.stamp.sec );
+//		ROS_INFO("constCloudPtr->header.stamp = "PRIu64, constCloudPtr->header.stamp );
+//		ROS_INFO("ros::Time(constCloudPtr->header.stamp) = "PRIu64, ros::Time(constCloudPtr->header.stamp) );
+//		ROS_INFO("#######");
+
+
+
 
 		// find normals
 		//pcl::PointCloud<pcl::PointXYZ>::ConstPtr groundPlaneCloud = segmentGroundPlane(filteredCloud);
@@ -121,6 +141,8 @@ public:
 		sor.filter (*sorCloudPtr);
 
 
+
+
 		*outputCloudPtr=*sorCloudPtr; // select output cloud
 		ROS_INFO("Filter: incloud height=%d", inputCloudPtr->height );
 		ROS_INFO("Filter: incloud width=%d", inputCloudPtr->width );
@@ -129,23 +151,31 @@ public:
 		return outputCloudPtr;
 	}
 
-//	// Publish new rototranslatedpc
-//	pcl::PointCloud<pcl::PointXYZ>::Ptr
+	// Publish new rototranslatedpc
+	pcl::PointCloud<pcl::PointXYZ>::Ptr
 //	transformCloud(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& inputCloudPtr){
-//
-//		pcl::PointCloud<pcl::PointXYZ>::Ptr outputCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
-//
-//		try{
-//			tfTransformListener_.waitForTransform("/camera_link", "/base_link", inputCloudPtr->header.stamp, ros::Duration(3.0));
-//			//pcl_ros::transformPointCloud ("/base_link", *inputCloudPtr, outputCloudPtr, tfTransformListener_); // CHANGE TO GET TRANSFORM AND APPLY IN PCL
-//		}
-//		catch (tf::TransformException& ex){
-//			ROS_ERROR("%s",ex.what());
-//		}
-//
-//		ROS_INFO("Transform: The cloud.header.frame_id is: %s ",outputCloudPtr->header.frame_id.c_str());
-//		return outputCloudPtr;
-//	}
+	transformCloud(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& inputCloudPtr, ros::Time sensorStamp){
+
+		pcl::PointCloud<pcl::PointXYZ>::Ptr outputCloudPtr (new pcl::PointCloud<pcl::PointXYZ>  );
+	      tf::StampedTransform tfTransform;
+	      Eigen::Affine3d eigenTransform;
+
+
+		try{
+			//tfTransformListener_.waitForTransform("/camera_link", "/base_link", inputCloudPtr->header.stamp, ros::Duration(3.0));// ORIG DOESNT WORK
+			tfTransformListener_.waitForTransform("/camera_link", "/base_link", sensorStamp, ros::Duration(3.0));
+			tfTransformListener_.lookupTransform("/camera_link", "/base_link", sensorStamp, tfTransform);
+			tf::transformTFToEigen(tfTransform, eigenTransform);
+			pcl::transformPointCloud(*inputCloudPtr, *outputCloudPtr, eigenTransform);
+			//pcl_ros::transformPointCloud ("/base_link", *inputCloudPtr, outputCloudPtr, tfTransformListener_); // CHANGE TO GET TRANSFORM AND APPLY IN PCL
+		}
+		catch (tf::TransformException& ex){
+			ROS_ERROR("%s",ex.what());
+		}
+
+		ROS_INFO("Transform: The cloud.header.frame_id is: %s ",outputCloudPtr->header.frame_id.c_str());
+		return outputCloudPtr;
+	}
 
 	pcl::PointCloud<pcl::PointXYZ>::ConstPtr
 	segmentGroundPlane(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr& inputCloudPtr){
